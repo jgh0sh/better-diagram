@@ -37,9 +37,27 @@ For a high-level architecture diagram that should look like GitDiagram's own out
 - Put the product UI as a lower-left lane: app router UI, repo page, server actions, hooks, renderer, client API.
 - Let the two top pipelines fan out directly to the shared service row. This creates the clean GitDiagram look with parallel vertical drops and short orthogonal elbows.
 - Prefer direct edges over too many artificial aggregator nodes. Add an intermediate hub only when a fan-out creates visibly bad curved side exits.
-- It is acceptable for long edges to route around the outside of the graph when they represent feedback or cached-state paths; keep the main read path vertical.
+- Avoid long feedback edges in the main overview. If a cached-state, retry, or UI-trigger path creates a cycle, omit it from the high-level diagram or move it to a second focused diagram.
+- Keep the main overview mostly acyclic: top pipelines flow downward to shared services, validation, artifacts, and UI consumption.
 - Keep labels compact and similar in size: usually two lines, occasionally three lines for central pipeline nodes.
 - Use the screenshot topology before inventing a new layout.
+
+## Parallel-Lines First
+
+For GitDiagram-style architecture maps, optimize for as many parallel lines as possible. Parallel vertical or near-vertical edge bundles are more important than showing every relationship.
+
+- Treat the diagram as rows and lanes. Nodes in the same row should have the same kind of role, and nodes in the same lane should form a mostly vertical chain.
+- Use `flowchart TD` and a mostly DAG-shaped graph. Avoid cycles, reverse arrows, and same-rank side edges.
+- Prefer one directional story per diagram. For example, choose either "request triggers generation" or "artifact is displayed", not both in the same overview.
+- Keep edge direction consistent: top-to-bottom for primary flow, short fan-out only between adjacent rows.
+- Do not draw edges that skip over unrelated rows. If an edge would jump from row 6 back to row 1 or across the graph, omit it or split it into a second diagram.
+- Use lane nodes such as `backend_inputs`, `next_inputs`, `artifact_state`, or `client_surface` when they turn multiple crossing edges into parallel chains.
+- Duplicate the shape of parallel lanes when two runtimes do similar work: pipeline, inputs, graph planning, validation, artifact output.
+- Prefer fewer, straighter edges over a more exhaustive but tangled graph.
+- Preserve detail inside nodes instead of adding crossing edges. Use compact two- or three-line labels to include concrete repo paths, technologies, and responsibilities.
+- When a lane-summary node hides important detail, split it into two vertical nodes in the same lane rather than drawing edges across lanes.
+- Prefer detailed lane nodes such as `GitHub Fetch<br/>metadata, file tree, README`, `Quota + Cost<br/>Upstash Redis`, and `Model Passes<br/>OpenAI/OpenRouter` over vague labels such as `Inputs`.
+- After drafting, scan for diagonals and outside loops. Remove or reroute those edges before returning the diagram.
 
 ## Workflow
 
@@ -103,6 +121,12 @@ flowchart TB
    - Prefer straight vertical edges for parent-to-child flows. Put a node's primary child directly after it in source order and avoid placing unrelated siblings between them.
    - For fan-out from a storage or service node, put all immediate children on the next row directly beneath it. If one child continues downward, place that continuing child in the center so its outgoing edge can stay vertical.
    - Avoid long side-exit edges from cylinder/database nodes when they visibly degrade the layout. If a store feeds multiple consumers and the edges curve badly, add a rectangular access/index node below the store, then fan out from that node.
+   - Do not include both directions of an interaction in one overview. For example, show `client_api --> generation_pipeline` or `generation_pipeline --> app_ui`, not both, unless the user asks for a sequence diagram.
+   - Remove edges that jump across three or more visual rows when they are secondary cache, refresh, retry, or display-state relationships.
+   - If preserving such an edge is essential, replace it with a small intermediate node in the same vertical lane as the source and target.
+   - Prioritize parallel-line layout over completeness. A high-level architecture map may omit secondary relationships if they create diagonal or looping edges.
+   - For similar runtimes, build matched vertical lanes instead of one shared web of dependencies.
+   - Keep detail by splitting each lane vertically into concrete stages before adding cross-lane edges.
 
 5. Verify visually when possible:
    - Render the Mermaid diagram in the target environment or an available local/browser preview.
@@ -138,6 +162,9 @@ For a repo-level architecture map:
 - Prefer flat diagrams for first-pass architecture maps. Use labels, spacing, and source order before adding visible group boxes.
 - For a clean GitDiagram-like map, avoid subgraphs, avoid edge labels, use similarly sized nodes, and arrange source order by rows.
 - To encourage parallel lines, align sibling nodes into rows and keep fan-out/fan-in edge declarations ordered consistently across those rows.
+- Keep the overview graph mostly DAG-shaped. Cycles are the main cause of long outside routes and edge crossings in ELK.
+- Prefer lane summaries over cross-lane edges. For example, use `Backend Inputs` and `Next Inputs` rather than drawing every pipeline directly to the same three external services if that makes crossings worse.
+- Do not make lane summaries generic. Encode the hidden detail in the node label or split the summary into vertical stages in the same lane.
 - Avoid inventory diagrams. Do not include tests, tiny utilities, styling files, generated files, or config unless they define a real runtime boundary.
 - If the first render would be too dense, split into a high-level diagram plus one focused detail diagram rather than removing all useful detail.
 
@@ -151,7 +178,9 @@ When a diagram still looks tangled:
 4. Put broad fan-out nodes above the nodes they fan out to, not in the middle of the graph.
 5. For repeated edges, use the same target order from each source so ELK can route them as parallel bundles.
 6. If an edge curves around another node, move the target directly below the source or introduce an intermediate node that owns the fan-out.
-7. Prefer two short diagrams over one diagram with long side-to-side return edges.
+7. Break cycles by choosing one direction for the overview. Put the reverse direction in prose or a second detail diagram.
+8. Convert crossing shared-service edges into lane-local summary nodes.
+9. Prefer two short diagrams over one diagram with long side-to-side return edges.
 
 ## Example
 
