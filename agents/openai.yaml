@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagram ELK Renderer"
+  short_description: "Make large Mermaid diagrams readable with ELK layout"
+  default_prompt: "Create or fix a large architecture diagram using Mermaid with ELK layout."
